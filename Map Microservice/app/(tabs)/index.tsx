@@ -3,7 +3,11 @@ import MapView, { Marker, Polyline } from "react-native-maps";
 import { StyleSheet, Text, View, FlatList, Pressable, Image } from "react-native";
 import markers from "@/assets/markers"; // Marker listesi (latitude, longitude içermeli)
 
+<<<<<<< HEAD
 const GOOGLE_MAPS_APIKEY = ""; // API keyinizi buraya yazın
+=======
+const GOOGLE_MAPS_APIKEY = "AIzaSyChn1mkTUiT6PfrWt08G4Qrp_HEsDpz8oI"; // API keyinizi buraya yazın
+>>>>>>> 2e582cd485470f6bae93feb7d74dee9dbf0b389e
 const ROUTES_API_URL = "https://routes.googleapis.com/directions/v2:computeRoutes";
 
 interface MarkerType {
