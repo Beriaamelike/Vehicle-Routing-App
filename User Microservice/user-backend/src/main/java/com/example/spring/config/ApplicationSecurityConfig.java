@@ -37,6 +37,7 @@ public class ApplicationSecurityConfig {
         httpSecurity.csrf(httpSecurityCsrfConfigurer -> httpSecurityCsrfConfigurer.disable())
                 .authorizeHttpRequests(requests ->
                         requests.requestMatchers("/api/auth/**").permitAll()
+                                .requestMatchers("/").permitAll()
                                 .requestMatchers("/h2-console/**").permitAll()
                                 .anyRequest()
                                 .authenticated()
@@ -59,5 +60,17 @@ public class ApplicationSecurityConfig {
         return new BCryptPasswordEncoder();
     }
 
+    @Bean
+    public WebMvcConfigurer corsConfigurer() {
+        return new WebMvcConfigurer() {
+            @Override
+            public void addCorsMappings(CorsRegistry registry) {
+                registry.addMapping("/**")
+                        .allowedOrigins("*")  // Tüm istemcilere izin ver
+                        .allowedMethods("GET", "POST", "PUT", "DELETE")
+                        .allowedHeaders("*");
+            }
+        };
+    }
 
 }

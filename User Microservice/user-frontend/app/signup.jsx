@@ -32,7 +32,7 @@ const SignupScreen = () => {
     }
 
     try {
-      const response = await axios.post("http://192.168.1.8:8080/api/auth/register", {
+      const response = await axios.post("http://10.0.2.2:8080/api/auth/register", {
         username: userData.username,
         password: userData.password,
         roles: [role], 

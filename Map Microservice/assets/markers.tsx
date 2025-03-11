@@ -1,67 +1,88 @@
-const markers = [
+const deliveryMarkers = [
   {
-    "name": "Gazi Üniversitesi Mühendislik Fakültesi",
-    "coordinates": {
-      "latitude": 39.9391,
-      "longitude": 32.8236
-    },
-    "description": "Ankara'da bulunan Gazi Üniversitesi eğitimde öncü kurumlardan biridir.",
-    "image": "https://upload.wikimedia.org/wikipedia/tr/7/77/Gazi_University_logo.png"
-  },
-  {
-    "name": "Mamak Saime Kadın KYK Kız Öğrenci Yurdu",
-    "coordinates": {
-      "latitude": 39.9208,
-      "longitude": 32.8905
-    },
-    "description": "Mamak'ta bulunan KYK kız yurdu, konforlu ve güvenli bir konaklama sunmaktadır.",
-    "image": "https://www.kyk.gov.tr/kurumsal/logo.png"
-  },
-  {
-    "name": "Anıtkabir",
-    "coordinates": {
-      "latitude": 39.9251,
-      "longitude": 32.8346
-    },
-    "description": "Türkiye Cumhuriyeti'nin kurucusu Mustafa Kemal Atatürk'ün anıt mezarı.",
-    "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Anitkabir_Ataturk_Mausoleum.jpg/250px-Anitkabir_Ataturk_Mausoleum.jpg"
-  },
-  {
-    "name": "Kızılay Meydanı",
+    "id": "1", // 🚀 Benzersiz ID eklendi
+    "customerName": "Ahmet Yılmaz",
     "coordinates": {
       "latitude": 39.9208,
       "longitude": 32.8541
     },
-    "description": "Ankara'nın merkezi ve en işlek noktalarından biri.",
-    "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/88/K%C4%B1z%C4%B1lay_Meydan%C4%B1_Ankara.jpg/250px-K%C4%B1z%C4%B1lay_Meydan%C4%B1_Ankara.jpg"
+    "address": "Kızılay, Ankara",
+    "product": "Laptop",
+    "quantity": 1,
+    "estimatedArrival": "2025-03-06 14:30",
+    "status": "Yolda",
+    "deliveryNote": "Müşteri arandı, evde olduğunu belirtti."
   },
   {
-    "name": "Atakule",
+    "id": "2",
+    "customerName": "Mehmet Demir",
+    "coordinates": {
+      "latitude": 39.9251,
+      "longitude": 32.8346
+    },
+    "address": "Anıtkabir Civarı, Ankara",
+    "product": "Cep Telefonu",
+    "quantity": 2,
+    "estimatedArrival": "2025-03-06 15:00",
+    "status": "Hazırlanıyor",
+    "deliveryNote": "Kapı şifresi müşteri tarafından iletildi."
+  },
+  {
+    "id": "3",
+    "customerName": "Elif Kaya",
+    "coordinates": {
+      "latitude": 39.9391,
+      "longitude": 32.8236
+    },
+    "address": "Gazi Üniversitesi Mühendislik Fakültesi, Ankara",
+    "product": "Kitap Seti",
+    "quantity": 5,
+    "estimatedArrival": "2025-03-06 16:00",
+    "status": "Teslim Edildi",
+    "deliveryNote": "Teslimatı bina girişinde güvenliğe bırakıldı."
+  },
+  {
+    "id": "4",
+    "customerName": "Fatma Çelik",
     "coordinates": {
       "latitude": 39.8872,
       "longitude": 32.8650
     },
-    "description": "Ankara'nın en yüksek kulelerinden biri ve popüler bir seyir noktası.",
-    "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/30/Atakule_Ankara.jpg/250px-Atakule_Ankara.jpg"
+    "address": "Atakule, Ankara",
+    "product": "Mutfak Robotu",
+    "quantity": 1,
+    "estimatedArrival": "2025-03-06 17:15",
+    "status": "Yolda",
+    "deliveryNote": "Müşteri teslimatı iş yerinde alacak."
   },
   {
-    "name": "Ulus Meydanı",
-    "coordinates": {
-      "latitude": 39.9380,
-      "longitude": 32.8598
-    },
-    "description": "Ankara'nın tarihi merkezi ve Atatürk Heykeli'nin bulunduğu alan.",
-    "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1b/Ulus_Ataturk_Statue.jpg/250px-Ulus_Ataturk_Statue.jpg"
-  },
-  {
-    "name": "Gençlik Parkı",
+    "id": "5",
+    "customerName": "Hasan Koç",
     "coordinates": {
       "latitude": 39.9336,
       "longitude": 32.8550
     },
-    "description": "Ankara'nın en eski ve büyük parklarından biri.",
-    "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/09/Genclik_Parki_Ankara.jpg/250px-Genclik_Parki_Ankara.jpg"
+    "address": "Gençlik Parkı Civarı, Ankara",
+    "product": "Spor Ayakkabı",
+    "quantity": 2,
+    "estimatedArrival": "2025-03-06 18:00",
+    "status": "İade Sürecinde",
+    "deliveryNote": "Müşteri yanlış adres verdiği için teslimat iptal edildi."
+  },
+  {
+    "id": "6",
+    "customerName": "Zeynep Aydın",
+    "coordinates": {
+      "latitude": 39.9208,
+      "longitude": 32.8905
+    },
+    "address": "Mamak Saime Kadın KYK Kız Öğrenci Yurdu, Ankara",
+    "product": "Elektrikli Isıtıcı",
+    "quantity": 1,
+    "estimatedArrival": "2025-03-06 19:00",
+    "status": "Teslim Edildi",
+    "deliveryNote": "Öğrenci yurt resepsiyonuna bırakıldı."
   }
 ];
 
-export default markers;
+export default deliveryMarkers;

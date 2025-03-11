@@ -1,16 +1,21 @@
 import React, { useRef, useState } from "react";
 import MapView, { Marker, Polyline } from "react-native-maps";
-import { StyleSheet, Text, View, FlatList, Pressable, Image } from "react-native";
-import markers from "@/assets/markers"; // Marker listesi (latitude, longitude içermeli)
+import { StyleSheet, Text, View, FlatList, Pressable } from "react-native";
+import deliveryMarkers from "@/assets/markers"; // Marker listesi
 
-const GOOGLE_MAPS_APIKEY = ""; // API keyinizi buraya yazın
+const GOOGLE_MAPS_APIKEY = "AIzaSyChn1mkTUiT6PfrWt08G4Qrp_HEsDpz8oI"; // API keyinizi buraya yazın
 const ROUTES_API_URL = "https://routes.googleapis.com/directions/v2:computeRoutes";
 
 interface MarkerType {
-  name: string;
+  id: string;
+  customerName: string;
   coordinates: { latitude: number; longitude: number };
-  description: string;
-  image: string;
+  address: string;
+  product: string;
+  quantity: number;
+  estimatedArrival: string;
+  status: string;
+  deliveryNote: string;
 }
 
 const HomeScreen = () => {
@@ -20,20 +25,18 @@ const HomeScreen = () => {
 
   // **Rota oluşturma fonksiyonu**
   const generateRoute = async () => {
-    if (markers.length < 2) {
-      console.error("At least two markers are required to calculate a route.");
+    if (deliveryMarkers.length === 0) {
+      console.error("Teslimat noktaları eksik.");
       return;
     }
 
-    const origin = markers[0].coordinates;
-    const destination = markers[markers.length - 1].coordinates;
+    const origin = deliveryMarkers[0].coordinates;
+    const destination = deliveryMarkers[deliveryMarkers.length - 1].coordinates;
 
-    // Ara noktalar (ilk ve son hariç)
-    const waypoints = markers.slice(1, -1).map(marker => ({
+    const waypoints = deliveryMarkers.slice(1, -1).map(marker => ({
       location: { latLng: { latitude: marker.coordinates.latitude, longitude: marker.coordinates.longitude } }
     }));
 
-    // API'ye gönderilecek istek gövdesi
     const requestBody: any = {
       origin: { location: { latLng: { latitude: origin.latitude, longitude: origin.longitude } } },
       destination: { location: { latLng: { latitude: destination.latitude, longitude: destination.longitude } } },
@@ -43,7 +46,7 @@ const HomeScreen = () => {
     };
 
     if (waypoints.length > 0) {
-      requestBody.intermediates = waypoints; // Ara noktaları ekle
+      requestBody.intermediates = waypoints;
     }
 
     try {
@@ -72,9 +75,8 @@ const HomeScreen = () => {
     }
   };
 
-  // **Haritadaki bir marker'a tıklanınca çalışır**
   const handleMarkerPress = (marker: MarkerType) => {
-    setSelectedCard(marker.name);
+    setSelectedCard(marker.id);
     mapRef.current?.animateToRegion(
       {
         latitude: marker.coordinates.latitude,
@@ -92,14 +94,14 @@ const HomeScreen = () => {
         style={styles.map}
         ref={mapRef}
         initialRegion={{
-          latitude: markers[0].coordinates.latitude,
-          longitude: markers[0].coordinates.longitude,
+          latitude: deliveryMarkers[0]?.coordinates.latitude || 37.7749,
+          longitude: deliveryMarkers[0]?.coordinates.longitude || -122.4194,
           latitudeDelta: 0.05,
           longitudeDelta: 0.05,
         }}
       >
-        {markers.map((marker, index) => (
-          <Marker key={index} title={marker.name} coordinate={marker.coordinates} />
+        {deliveryMarkers.map((marker) => (
+          <Marker key={marker.id} title={marker.customerName} coordinate={marker.coordinates} />
         ))}
 
         {polylineCoords.length > 0 && (
@@ -107,21 +109,21 @@ const HomeScreen = () => {
         )}
       </MapView>
 
-      {/* Marker Listesi */}
       <View style={styles.markerListContainer}>
         <FlatList
           horizontal
-          data={markers}
-          keyExtractor={(item) => item.name}
+          data={deliveryMarkers}
+          keyExtractor={(item) => item.id}
           renderItem={({ item: marker }) => (
             <Pressable
               onPress={() => handleMarkerPress(marker)}
-              style={marker.name === selectedCard ? styles.activeMarkerButton : styles.markerButton}
+              style={marker.id === selectedCard ? styles.activeMarkerButton : styles.markerButton}
             >
-              <Image source={{ uri: marker.image }} style={styles.markerImage} />
               <View style={styles.markerInfo}>
-                <Text style={styles.markerName}>{marker.name}</Text>
-                <Text style={styles.markerDescription}>{marker.description}</Text>
+                <Text style={styles.markerName}>{marker.customerName}</Text>
+                <Text style={styles.markerDescription}>{marker.address}</Text>
+                <Text style={styles.markerStatus}>Durum: {marker.status}</Text>
+                <Text style={styles.markerNote}>{marker.deliveryNote}</Text>
               </View>
             </Pressable>
           )}
@@ -129,24 +131,17 @@ const HomeScreen = () => {
         />
       </View>
 
-      {/* Rota oluşturma butonu */}
       <Pressable style={styles.routeButton} onPress={generateRoute}>
-        <Text style={styles.routeButtonText}>Generate Route</Text>
+        <Text style={styles.routeButtonText}>Rota Oluştur</Text>
       </Pressable>
     </View>
   );
 };
 
-// **Polyline çözme fonksiyonu**
 const decodePolyline = (encoded: string) => {
-  let index = 0,
-    lat = 0,
-    lng = 0,
-    coordinates = [];
+  let index = 0, lat = 0, lng = 0, coordinates = [];
   while (index < encoded.length) {
-    let shift = 0,
-      result = 0,
-      byte;
+    let shift = 0, result = 0, byte;
     do {
       byte = encoded.charCodeAt(index++) - 63;
       result |= (byte & 0x1f) << shift;
@@ -165,25 +160,24 @@ const decodePolyline = (encoded: string) => {
   return coordinates;
 };
 
+
+
+
 // **Stiller**
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f0f0f0" },
   map: { flex: 1 },
-  markerListContainer: {
-    position: "absolute",
-    bottom: 80,
-    left: 0,
-    right: 0,
-    paddingHorizontal: 10,
-  },
-  activeMarkerButton: { backgroundColor: "#E7E3AC", borderRadius: 10, padding: 10, marginHorizontal: 5, flexDirection: "row", alignItems: "center", elevation: 3, width: 250 },
-  markerButton: { backgroundColor: "#fff", borderRadius: 10, padding: 10, marginHorizontal: 5, flexDirection: "row", alignItems: "center", elevation: 3, width: 250 },
-  markerImage: { width: 55, height: 55, borderRadius: 10, marginRight: 10 },
+  markerListContainer: { position: "absolute", bottom: 80, left: 0, right: 0, paddingHorizontal: 10 },
+  activeMarkerButton: { backgroundColor: "#E7E3AC", borderRadius: 10, padding: 10, marginHorizontal: 5, elevation: 3, width: 300 },
+  markerButton: { backgroundColor: "#fff", borderRadius: 10, padding: 10, marginHorizontal: 5, elevation: 3, width: 300 },
   markerInfo: { flex: 1 },
   markerName: { fontSize: 16, fontWeight: "bold", color: "#333" },
-  markerDescription: { fontSize: 12, color: "#666", marginTop: 5 },
+  markerDescription: { fontSize: 12, color: "#666", marginTop: 3 },
+  markerProduct: { fontSize: 14, fontWeight: "600", color: "#222", marginTop: 3 },
+  markerStatus: { fontSize: 12, color: "#008000", marginTop: 3 },
+  markerNote: { fontSize: 12, color: "#666", marginTop: 3 },
   routeButton: { position: "absolute", bottom: 20, left: "50%", marginLeft: -75, backgroundColor: "#4285F4", padding: 10, borderRadius: 10, elevation: 3 },
   routeButtonText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
 });
 
-export default HomeScreen;
+export default HomeScreen;  

@@ -23,7 +23,7 @@ const LoginScreen = () => {
 
   const handleLogin = async () => {
     try {
-      const response = await axios.post('http://192.168.1.8:8080/api/auth/get-token', {
+      const response = await axios.post('http://10.0.2.2:8080/api/auth/get-token', {
         username: email,
         password: password,
       });
