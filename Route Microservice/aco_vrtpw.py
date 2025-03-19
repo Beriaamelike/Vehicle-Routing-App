@@ -3,8 +3,8 @@ import pandas as pd
 import requests
 from fastapi import FastAPI, UploadFile, File, Depends
 from sqlalchemy.orm import Session
+from create_tables import Route
 from database import get_db
-from create_tables import Node, Route
 from database import engine, Base
 
 Base.metadata.create_all(bind=engine)
@@ -113,6 +113,7 @@ def solve_aco(problem, alpha, beta, rho, iterations):
 
     return best_routes, best_distance
 
+
 @app.post("/optimize_routes")
 async def optimize_routes(
     nodes_csv: UploadFile = File(...),
@@ -123,6 +124,7 @@ async def optimize_routes(
     iterations: int = 100,
     db: Session = Depends(get_db)
 ):
+    # Veriyi yükle ve işle
     nodes_df = pd.read_csv(nodes_csv.file)
     nodes_df.columns = nodes_df.columns.str.lower()
 
@@ -130,6 +132,7 @@ async def optimize_routes(
     vehicle_capacity = int(vehicle_info_df['fleet_capacity'][0])
     num_vehicles = int(vehicle_info_df['fleet_size'][0])
 
+    # Depot bilgisi (bu da rotalara dahil edilecek)
     depot = {
         "customer": "Depot",
         "xc": vehicle_info_df['fleet_start_x_coord'][0],
@@ -137,8 +140,10 @@ async def optimize_routes(
         "demand": 0
     }
 
+    # Müşteri düğümleri verisi
     customer_nodes = nodes_df.to_dict(orient="records")
 
+    # VehicleRoutingProblem nesnesi oluştur
     problem = VehicleRoutingProblem(
         nodes=customer_nodes,
         depot=depot,
@@ -146,31 +151,97 @@ async def optimize_routes(
         num_vehicles=num_vehicles
     )
 
+    # Ant Colony Optimization (ACO) ile çözümle
     best_routes, best_distance = solve_aco(problem, alpha, beta, rho, iterations)
-    route_distances = calculate_route_distances(problem, best_routes)
-    route_customers = get_route_customers(problem, best_routes)
 
-    db.query(Route).delete()
-    db.commit()
+    # En iyi rotaları veritabanına kaydet, depoyu da dahil et
+    route_id = 1  # İlk rotayı başlat, ya da mevcut en yüksek ID ile
+    for route_number, route in enumerate(best_routes, start=1):
+        # İlk olarak depo bilgilerini ekle
+        route_entry = Route(
+            route_number=route_number,
+            route_order=0,  # Depot her zaman ilk sırada
+            customer_id=0,  # Depot’un müşteri ID'si yok
+            customer_name="Depot",
+            customer_lat=depot["xc"],
+            customer_lon=depot["yc"],
+            demand=depot["demand"]
+        )
+        db.add(route_entry)
 
-    for route_id, route in enumerate(route_customers):
-        for idx, customer in enumerate(route):
-            node_distance = route_distances[route_id] if idx == len(route) - 1 else 0
-            db.add(Route(
-                route_id=route_id,
-                customer=customer["customer"],
-                latitude=customer["coordinates"]["lat"],
-                longitude=customer["coordinates"]["lon"],
-                demand=customer["demand"],
-                distance=node_distance
-            ))
+        # Şimdi rotadaki tüm müşterileri ekle (depo zaten eklendi)
+        for order, node_idx in enumerate(route[1:], start=1):  # Depot'u atla, index 0
+            customer_info = problem.nodes[node_idx]
+            route_entry = Route(
+                route_number=route_number,
+                route_order=order,
+                customer_id=node_idx,
+                customer_name=customer_info.get("customer", f"Node {node_idx}"),
+                customer_lat=customer_info["xc"],
+                customer_lon=customer_info["yc"],
+                demand=customer_info.get("demand", 0)
+            )
+            db.add(route_entry)
 
-    db.commit()
+        db.commit()  # Her rota için değişiklikleri kaydet
 
+    # Optimizasyon sonuçlarını döndür
     return {
-    "best_routes": [[int(node) for node in route] for route in best_routes],
-    "best_distance": float(best_distance),
-    "route_distances": [float(dist) for dist in route_distances],
-    "route_customers": route_customers  
-}
+        "best_routes": [[int(node) for node in route] for route in best_routes],
+        "best_distance": float(best_distance),
+        "route_customers": get_route_customers_with_depot(problem, best_routes)  # Depoyu da dahil et
+    }
 
+def get_route_customers_with_depot(problem, routes):
+    route_customers = []
+    for route in routes:
+        customer_info = []
+        
+        # İlk olarak depoyu ekle
+        depot_info = {
+            "customer": "Depot",
+            "coordinates": {"lat": problem.depot["xc"], "lon": problem.depot["yc"]},
+            "demand": problem.depot["demand"]
+        }
+        customer_info.append(depot_info)
+
+        # Şimdi rotadaki tüm müşterileri ekle
+        for node_idx in route[1:]:  # Depot'u atla, index 0
+            customer_info.append({
+                "customer": problem.nodes[node_idx].get("customer", f"Node {node_idx}"),
+                "coordinates": {"lat": problem.nodes[node_idx]["xc"], "lon": problem.nodes[node_idx]["yc"]},
+                "demand": problem.nodes[node_idx].get("demand", 0)
+            })
+        
+        route_customers.append(customer_info)
+
+    return route_customers
+
+
+@app.get("/get_routes")
+async def get_routes(db: Session = Depends(get_db)):
+    # Veritabanından rotaları çek
+    routes = db.query(Route).all()
+
+    # Rotaları kullanıcı dostu formatta hazırlama
+    route_data = {}
+    for route in routes:
+        route_number = route.route_number
+        if route_number not in route_data:
+            route_data[route_number] = []
+
+        route_data[route_number].append({
+            "route_number": route.route_number,
+            "route_order": route.route_order,
+            "customer_id": route.customer_id,
+            "customer_name": route.customer_name,
+            "coordinates": {"lat": route.customer_lat, "lon": route.customer_lon},
+            "demand": route.demand
+        })
+
+    # Harita üzerinde kullanılabilir formata dönüştürme
+    route_customers = []
+    for route_number, customers in route_data.items():
+        route_customers.append(customers)
+
+    return {"route_customers": route_customers}

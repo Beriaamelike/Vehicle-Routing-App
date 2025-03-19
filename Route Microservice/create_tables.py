@@ -3,30 +3,32 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 
 DATABASE_URL = "mysql+pymysql://fastapi:fastapi123@localhost/vrp_db"
 
-engine = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base = declarative_base()  # ✅ Hata buradan kaynaklanıyordu, artık düzeltildi!
+# Initialize the SQLAlchemy engine
+engine = create_engine(DATABASE_URL, echo=True)
 
-class Node(Base):
-    __tablename__ = "nodes"
+# Base class for models
+Base = declarative_base()
 
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    customer = Column(Integer, index=True)
-    xc = Column(Float)
-    yc = Column(Float)
-
+# Route Model
 class Route(Base):
-    __tablename__ = "routes"
+    __tablename__ = 'routes'
 
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    route_id = Column(Integer, nullable=False)
-    customer = Column(String(255), nullable=False)
-    latitude = Column(Float, nullable=False)
-    longitude = Column(Float, nullable=False)
-    demand = Column(Integer, nullable=False)
-    distance = Column(Float, nullable=False)
+    id = Column(Integer, primary_key=True, index=True)
+    route_number = Column(Integer)
+    route_order = Column(Integer)
+    customer_id = Column(Integer)
+    customer_name = Column(String(255))  # Specify length here
+    customer_lat = Column(Float)
+    customer_lon = Column(Float)
+    demand = Column(Float)
 
-# ✅ Veritabanındaki tüm tabloları oluştur
+# Create a sessionmaker for creating sessions
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+# Drop existing tables if any
+Base.metadata.drop_all(bind=engine)
+
+# Create the tables in the database
 Base.metadata.create_all(bind=engine)
 
-print("✅ MySQL içindeki tablolar başarıyla oluşturuldu!")
+print("✅ MySQL tables created successfully!")
