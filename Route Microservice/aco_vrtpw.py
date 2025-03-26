@@ -245,3 +245,73 @@ async def get_routes(db: Session = Depends(get_db)):
         route_customers.append(customers)
 
     return {"route_customers": route_customers}
+
+
+@app.post("/upload_csv_without_route")
+async def upload_csv_without_route(
+    nodes_csv: UploadFile = File(...),
+    vehicle_info_csv: UploadFile = File(...),
+    db: Session = Depends(get_db)
+):
+    # CSV dosyasını oku ve pandas DataFrame'e çevir
+    nodes_df = pd.read_csv(nodes_csv.file)
+    nodes_df.columns = nodes_df.columns.str.lower()  # Kolon isimlerini küçük harfe çevir
+
+    vehicle_info_df = pd.read_csv(vehicle_info_csv.file)
+
+    # Depot bilgilerini al
+    depot = {
+        "customer": "Depot",
+        "xc": vehicle_info_df['fleet_start_x_coord'][0],
+        "yc": vehicle_info_df['fleet_start_y_coord'][0],
+        "demand": 0
+    }
+
+    # Müşteri düğümleri verisini CSV'den al
+    customer_nodes = nodes_df.to_dict(orient="records")
+
+    # Depoyu veritabanına kaydet
+    route_entry = Route(
+        customer_id=0,  # Depot'un müşteri ID'si yok
+        customer_name="Depot",
+        customer_lat=depot["xc"],
+        customer_lon=depot["yc"],
+        demand=depot["demand"]
+    )
+    db.add(route_entry)
+
+    # Müşteri bilgilerini veritabanına kaydet
+    for node_idx, customer_info in enumerate(customer_nodes, start=1):  # Başlangıçta depo ekledik
+        route_entry = Route(
+            customer_id=node_idx,
+            customer_name=customer_info.get("customer", f"Node {node_idx}"),
+            customer_lat=customer_info["xc"],
+            customer_lon=customer_info["yc"],
+            demand=customer_info.get("demand", 0)
+        )
+        db.add(route_entry)
+
+    db.commit()  # Değişiklikleri veritabanına kaydet
+
+    return {"message": "CSV verileri başarıyla veritabanına kaydedildi"}
+
+
+@app.get("/get_all_routes")
+async def get_all_routes(db: Session = Depends(get_db)):
+    # Veritabanındaki tüm rotaları çek
+    routes = db.query(Route).all()
+
+    # Rotaları kullanıcı dostu formatta hazırlama
+    route_data = []
+    for route in routes:
+        route_data.append({
+            "id": route.id,
+            "customer_id": route.customer_id,
+            "customer_name": route.customer_name,
+            "customer_lat": route.customer_lat,
+            "customer_lon": route.customer_lon,
+            "demand": route.demand
+        })
+
+    # Tüm rotaları döndür
+    return {"routes": route_data}

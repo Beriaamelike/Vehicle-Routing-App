@@ -14,13 +14,15 @@ class Route(Base):
     __tablename__ = 'routes'
 
     id = Column(Integer, primary_key=True, index=True)
-    route_number = Column(Integer)
-    route_order = Column(Integer)
     customer_id = Column(Integer)
     customer_name = Column(String(255))  # Specify length here
     customer_lat = Column(Float)
     customer_lon = Column(Float)
     demand = Column(Float)
+
+
+
+
 
 # Create a sessionmaker for creating sessions
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

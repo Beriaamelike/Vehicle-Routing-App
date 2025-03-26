@@ -23,6 +23,8 @@ dependencyResolutionManagement {
 
     }
 
+
+
 }
 
 rootProject.name = "MapboxMapApp"
