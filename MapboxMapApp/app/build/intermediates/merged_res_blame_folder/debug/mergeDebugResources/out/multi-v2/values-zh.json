@@ -1,0 +1,77 @@
+{
+    "logs": [
+        {
+            "outputFile": "com.example.mapboxmapapp-mergeDebugResources-63:/values-zh/values-zh.xml",
+            "map": [
+                {
+                    "source": "C:\\Users\\Beria Ayas\\.gradle\\caches\\8.11.1\\transforms\\78abc237ad9b14263ef20de0ed0b6fd3\\transformed\\maps-attribution-11.10.3\\res\\values-zh\\values-zh.xml",
+                    "from": {
+                        "startLines": "2,3,4,5,6,7,8,9,10,11,12,13,14,15",
+                        "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4",
+                        "startOffsets": "55,136,217,304,462,543,622,696,803,872,940,1007,1084,1159",
+                        "endColumns": "80,80,86,157,80,78,73,106,68,67,66,76,74,161",
+                        "endOffsets": "131,212,299,457,538,617,691,798,867,935,1002,1079,1154,1316"
+                    },
+                    "to": {
+                        "startLines": "2,3,4,5,6,7,8,9,10,11,12,13,14,19",
+                        "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4",
+                        "startOffsets": "55,136,217,304,462,543,622,696,803,872,940,1007,1084,1427",
+                        "endColumns": "80,80,86,157,80,78,73,106,68,67,66,76,74,161",
+                        "endOffsets": "131,212,299,457,538,617,691,798,867,935,1002,1079,1154,1584"
+                    }
+                },
+                {
+                    "source": "C:\\Users\\Beria Ayas\\.gradle\\caches\\8.11.1\\transforms\\ff491011f59edc12a7e2dc91d99c163e\\transformed\\android-11.10.3\\res\\values-zh\\values-zh.xml",
+                    "from": {
+                        "startLines": "2,3,4",
+                        "startColumns": "4,4,4",
+                        "startOffsets": "55,117,179",
+                        "endColumns": "61,61,62",
+                        "endOffsets": "112,174,237"
+                    },
+                    "to": {
+                        "startLines": "16,17,18",
+                        "startColumns": "4,4,4",
+                        "startOffsets": "1240,1302,1364",
+                        "endColumns": "61,61,62",
+                        "endOffsets": "1297,1359,1422"
+                    }
+                },
+                {
+                    "source": "C:\\Users\\Beria Ayas\\.gradle\\caches\\8.11.1\\transforms\\aea3e2d9bb6019423f6da0c55cf70823\\transformed\\maps-compass-11.10.3\\res\\values-zh\\values-zh.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endColumns": "80",
+                        "endOffsets": "131"
+                    },
+                    "to": {
+                        "startLines": "15",
+                        "startColumns": "4",
+                        "startOffsets": "1159",
+                        "endColumns": "80",
+                        "endOffsets": "1235"
+                    }
+                },
+                {
+                    "source": "C:\\Users\\Beria Ayas\\.gradle\\caches\\8.11.1\\transforms\\d888aa6b877dc9e1304cfd6b15cd5b39\\transformed\\maps-logo-11.10.3\\res\\values-zh\\values-zh.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endColumns": "133",
+                        "endOffsets": "184"
+                    },
+                    "to": {
+                        "startLines": "20",
+                        "startColumns": "4",
+                        "startOffsets": "1589",
+                        "endColumns": "133",
+                        "endOffsets": "1718"
+                    }
+                }
+            ]
+        }
+    ]
+}
