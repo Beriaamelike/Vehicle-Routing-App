@@ -21,6 +21,18 @@ class Route(Base):
     demand = Column(Float)
 
 
+class Aco(Base):
+    __tablename__ = "aco_routes"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    route_number = Column(Integer)
+    route_order = Column(Integer)
+    customer_id = Column(Integer)
+    customer_name = Column(String(255))
+    customer_lat = Column(Float)
+    customer_lon = Column(Float)
+    demand = Column(Float)
+
 
 
 

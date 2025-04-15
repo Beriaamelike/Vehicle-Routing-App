@@ -3,7 +3,7 @@ import pandas as pd
 import requests
 from fastapi import FastAPI, UploadFile, File, Depends
 from sqlalchemy.orm import Session
-from create_tables import Route
+from create_tables import Aco, Route
 from database import get_db
 from database import engine, Base
 
@@ -158,7 +158,7 @@ async def optimize_routes(
     route_id = 1  # İlk rotayı başlat, ya da mevcut en yüksek ID ile
     for route_number, route in enumerate(best_routes, start=1):
         # İlk olarak depo bilgilerini ekle
-        route_entry = Route(
+        route_entry = Aco(
             route_number=route_number,
             route_order=0,  # Depot her zaman ilk sırada
             customer_id=0,  # Depot’un müşteri ID'si yok
@@ -172,7 +172,7 @@ async def optimize_routes(
         # Şimdi rotadaki tüm müşterileri ekle (depo zaten eklendi)
         for order, node_idx in enumerate(route[1:], start=1):  # Depot'u atla, index 0
             customer_info = problem.nodes[node_idx]
-            route_entry = Route(
+            route_entry = Aco(
                 route_number=route_number,
                 route_order=order,
                 customer_id=node_idx,
