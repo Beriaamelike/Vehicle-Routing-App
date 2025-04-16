@@ -3,7 +3,7 @@ import pandas as pd
 import requests
 from fastapi import FastAPI, UploadFile, File, Depends
 from sqlalchemy.orm import Session
-from create_tables import Aco, Route
+from create_tables import Aco, Route, SessionLocal
 from database import get_db
 from database import engine, Base
 
@@ -14,13 +14,15 @@ app = FastAPI()
 OSRM_API_URL = "http://router.project-osrm.org/table/v1/driving"
 
 class VehicleRoutingProblem:
-    def __init__(self, nodes, depot, vehicle_capacity, num_vehicles):
+    def __init__(self, nodes, depot, vehicle_capacity, num_vehicles, cost_per_km, cost_per_time):
         self.depot = depot
         self.nodes = [depot] + nodes
         self.vehicle_capacity = vehicle_capacity
         self.num_vehicles = num_vehicles
         self.distance_matrix = self.calculate_distance_matrix()
         self.demands = [node.get("demand", 0) for node in self.nodes]
+        self.cost_per_km = cost_per_km  # Araç başına km maliyeti
+        self.cost_per_time = cost_per_time  # Araç başına zaman maliyeti
 
     def calculate_distance_matrix(self):
         locations = ";".join([f"{node['yc']},{node['xc']}" for node in self.nodes])
@@ -30,19 +32,34 @@ class VehicleRoutingProblem:
             raise Exception("OSRM API request failed!")
 
         data = response.json()
-        matrix = np.array(data["distances"]) / 1000
+        matrix = np.array(data["distances"]) / 1000  # Km cinsinden mesafeyi al
         matrix = np.nan_to_num(matrix, nan=0.0)
         return matrix
 
+def calculate_cost(distance, time, cost_per_km, cost_per_time):
+    """
+    Bu fonksiyon, mesafeye ve zamana bağlı maliyet hesaplar.
+    cost_per_km: Araç başına kilometre maliyeti
+    cost_per_time: Araç başına zaman maliyeti
+    """
+    return (cost_per_km * distance) + (cost_per_time * time)
+
 def construct_solution(problem, pheromone_matrix, alpha, beta):
+    print("Çözüm yapılıyor...")
     n = len(problem.nodes)
     remaining_nodes = set(range(1, n))
-    routes = []
+    routes = []  # Bu, her aracın rotasını tutacak
+    route_distances = []  # Her rota için mesafe
+    route_times = []  # Her rota için zaman
+    route_costs = []  # Her rota için maliyet
 
     while remaining_nodes:
+        print(f"Remaining nodes: {len(remaining_nodes)}")
         route = [0]  # Her rotanın başlangıç noktası depo (index 0)
         capacity = 0
         current_node = 0
+        route_distance = 0  # Rotadaki mesafeyi tutacak
+        route_time = 0  # Rotadaki zamanı tutacak
 
         while remaining_nodes:
             probabilities = []
@@ -51,11 +68,11 @@ def construct_solution(problem, pheromone_matrix, alpha, beta):
             for next_node in remaining_nodes:
                 distance = problem.distance_matrix[current_node][next_node]
 
-                if capacity + problem.demands[next_node] <= problem.vehicle_capacity:
-                    possible_nodes.append(next_node)
-                    tau = pheromone_matrix[current_node][next_node] ** alpha
-                    eta = (1 / max(distance, 1e-6)) ** beta
-                    probabilities.append(tau * eta)
+                # Kapasite kısıtlamasını geçici olarak kaldırdık
+                possible_nodes.append(next_node)
+                tau = pheromone_matrix[current_node][next_node] ** alpha
+                eta = (1 / max(distance, 1e-6)) ** beta  # Mesafe ağırlıklı etki
+                probabilities.append(tau * eta)
 
             if not possible_nodes:
                 break
@@ -66,13 +83,22 @@ def construct_solution(problem, pheromone_matrix, alpha, beta):
 
             route.append(next_node)
             current_node = next_node
-            capacity += problem.demands[next_node]
+            route_distance += problem.distance_matrix[route[-2]][route[-1]]  # Mesafeyi ekle
+            route_time += (problem.distance_matrix[route[-2]][route[-1]] / 40)  # Hızı 40 km/saat kabul ediyoruz
             remaining_nodes.remove(next_node)
 
         route.append(0)  # Her rotanın bitiş noktası depo (index 0)
-        routes.append(route)
+        routes.append(route)  # Yeni rota eklenir
+        route_distances.append(route_distance)
+        route_times.append(route_time)
 
-    return routes
+        route_cost = calculate_cost(route_distance, route_time, problem.cost_per_km, problem.cost_per_time)
+        route_costs.append(route_cost)
+
+    print("Çözüm tamamlandı.")
+    return routes, route_distances, route_times, route_costs
+
+
 
 def calculate_route_distances(problem, routes):
     return [sum(problem.distance_matrix[route[i]][route[i+1]] for i in range(len(route)-1)) for route in routes]
@@ -91,131 +117,147 @@ def get_route_customers(problem, routes):
     return route_customers
 
 def solve_aco(problem, alpha, beta, rho, iterations):
+    print("ACO algoritması başladı.")
     np.random.seed(42)
     pheromone_matrix = np.ones(problem.distance_matrix.shape)
     best_distance = float('inf')
     best_routes = []
+    best_cost = float('inf')
 
-    for _ in range(iterations):
-        routes = construct_solution(problem, pheromone_matrix, alpha, beta)
-        route_distances = calculate_route_distances(problem, routes)
-        distance = sum(route_distances)
+    for iteration in range(iterations):
+        print(f"Iterasyon: {iteration+1}/{iterations}")
+        routes, route_distances, route_times, route_costs = construct_solution(
+            problem, pheromone_matrix, alpha, beta
+        )
 
-        if distance < best_distance:
-            best_distance = distance
+        total_distance = sum(route_distances)
+        total_cost = sum(route_costs)
+
+        print(f"Toplam mesafe: {total_distance}, Toplam maliyet: {total_cost}")
+
+        # Eğer toplam maliyet iyileşmişse, en iyi sonucu güncelle
+        if total_cost < best_cost:
+            best_cost = total_cost
             best_routes = routes
 
+        # Pheromone güncelleme
         pheromone_matrix *= (1 - rho)
         for route, route_distance in zip(routes, route_distances):
             pheromone_amount = 1 / (route_distance + 1e-6)
             for i in range(len(route)-1):
                 pheromone_matrix[route[i]][route[i+1]] += pheromone_amount
 
-    return best_routes, best_distance
+    print("ACO algoritması tamamlandı.")
+    return best_routes, best_cost
+
 
 
 @app.post("/optimize_routes")
 async def optimize_routes(
-    nodes_csv: UploadFile = File(...),
-    vehicle_info_csv: UploadFile = File(...),
     alpha: float = 1.0,
     beta: float = 2.0,
     rho: float = 0.5,
     iterations: int = 100,
     db: Session = Depends(get_db)
 ):
-    # Veriyi yükle ve işle
-    nodes_df = pd.read_csv(nodes_csv.file)
-    nodes_df.columns = nodes_df.columns.str.lower()
+    print("Optimize routes API çağrıldı.")  # API'nin çağrıldığını görmek için
+    routes = db.query(Route).all()
+    
+    # Eğer rotalar yoksa, API'den dönen mesajı kontrol edelim
+    if not routes:
+        print("Veritabanında rota bulunamadı.")
+        return {"message": "No routes found in the database"}
 
-    vehicle_info_df = pd.read_csv(vehicle_info_csv.file)
-    vehicle_capacity = int(vehicle_info_df['fleet_capacity'][0])
-    num_vehicles = int(vehicle_info_df['fleet_size'][0])
-
-    # Depot bilgisi (bu da rotalara dahil edilecek)
+    print(f"{len(routes)} rota bulundu.")  # Veritabanındaki rotaların sayısını yazdıralım
+    
+    # Depot bilgilerini al
     depot = {
         "customer": "Depot",
-        "xc": vehicle_info_df['fleet_start_x_coord'][0],
-        "yc": vehicle_info_df['fleet_start_y_coord'][0],
+        "xc": routes[0].customer_lat,  # Depo koordinatları
+        "yc": routes[0].customer_lon,
         "demand": 0
     }
 
-    # Müşteri düğümleri verisi
-    customer_nodes = nodes_df.to_dict(orient="records")
+    # Müşteri düğümleri verisini veritabanından al
+    customer_nodes = []
+    for route in routes:
+        customer_nodes.append({
+            "customer": route.customer_name,
+            "xc": route.customer_lat,
+            "yc": route.customer_lon,
+            "demand": route.demand
+        })
 
+    print("Müşteri verileri alındı.")  # Verilerin başarıyla alındığını doğrulama
+    
     # VehicleRoutingProblem nesnesi oluştur
+    vehicle_capacity = 10  # Örnek kapasite
+    num_vehicles = 3  # Araç sayısı
+    cost_per_km = 0.5  # km başına maliyet
+    cost_per_time = 10  # zaman başına maliyet
+
     problem = VehicleRoutingProblem(
         nodes=customer_nodes,
         depot=depot,
         vehicle_capacity=vehicle_capacity,
-        num_vehicles=num_vehicles
+        num_vehicles=num_vehicles,
+        cost_per_km=cost_per_km,
+        cost_per_time=cost_per_time
     )
 
     # Ant Colony Optimization (ACO) ile çözümle
-    best_routes, best_distance = solve_aco(problem, alpha, beta, rho, iterations)
+    best_routes, best_cost = solve_aco(problem, alpha, beta, rho, iterations)
 
-    # En iyi rotaları veritabanına kaydet, depoyu da dahil et
-    route_id = 1  # İlk rotayı başlat, ya da mevcut en yüksek ID ile
-    for route_number, route in enumerate(best_routes, start=1):
-        # İlk olarak depo bilgilerini ekle
-        route_entry = Aco(
-            route_number=route_number,
-            route_order=0,  # Depot her zaman ilk sırada
-            customer_id=0,  # Depot’un müşteri ID'si yok
-            customer_name="Depot",
-            customer_lat=depot["xc"],
-            customer_lon=depot["yc"],
-            demand=depot["demand"]
-        )
-        db.add(route_entry)
+    # Yeni optimize edilmiş rotaları 'Aco' tablosuna ekleyelim
+    route_number = db.query(Aco.route_number).order_by(Aco.route_number.desc()).first()
+    route_number = route_number[0] + 1 if route_number else 1  # Yeni rota numarasını al
 
-        # Şimdi rotadaki tüm müşterileri ekle (depo zaten eklendi)
-        for order, node_idx in enumerate(route[1:], start=1):  # Depot'u atla, index 0
+    print("Optimize edilmiş rotalar hesaplandı.")  # Optimizasyon işlemi tamamlandı
+
+    for route in best_routes:
+        route_order = 1
+        for node_idx in route:
             customer_info = problem.nodes[node_idx]
-            route_entry = Aco(
+            aco_entry = Aco(
                 route_number=route_number,
-                route_order=order,
+                route_order=route_order,
                 customer_id=node_idx,
                 customer_name=customer_info.get("customer", f"Node {node_idx}"),
                 customer_lat=customer_info["xc"],
                 customer_lon=customer_info["yc"],
                 demand=customer_info.get("demand", 0)
             )
-            db.add(route_entry)
+            db.add(aco_entry)
+            route_order += 1  # Rotadaki her müşteri için sıralama artacak
+        route_number += 1  # Yeni rota için numara artırılır
+    db.commit()  # Veritabanına kaydetme işlemi
 
-        db.commit()  # Her rota için değişiklikleri kaydet
+    print("Yeni rotalar veritabanına kaydedildi.")  # Kaydetme işlemi tamamlandı
 
-    # Optimizasyon sonuçlarını döndür
     return {
         "best_routes": [[int(node) for node in route] for route in best_routes],
-        "best_distance": float(best_distance),
-        "route_customers": get_route_customers_with_depot(problem, best_routes)  # Depoyu da dahil et
+        "best_cost": float(best_cost),
     }
 
-def get_route_customers_with_depot(problem, routes):
-    route_customers = []
-    for route in routes:
-        customer_info = []
-        
-        # İlk olarak depoyu ekle
-        depot_info = {
-            "customer": "Depot",
-            "coordinates": {"lat": problem.depot["xc"], "lon": problem.depot["yc"]},
-            "demand": problem.depot["demand"]
-        }
-        customer_info.append(depot_info)
 
-        # Şimdi rotadaki tüm müşterileri ekle
-        for node_idx in route[1:]:  # Depot'u atla, index 0
-            customer_info.append({
-                "customer": problem.nodes[node_idx].get("customer", f"Node {node_idx}"),
-                "coordinates": {"lat": problem.nodes[node_idx]["xc"], "lon": problem.nodes[node_idx]["yc"]},
-                "demand": problem.nodes[node_idx].get("demand", 0)
-            })
-        
-        route_customers.append(customer_info)
+@app.get("/get_aco_routes")
+async def get_aco_routes(db: Session = Depends(get_db)):
+    # Veritabanındaki Aco tablosundaki rotaları çek
+    aco_routes = db.query(Aco).all()
 
-    return route_customers
+    route_data = []
+    for route in aco_routes:
+        route_data.append({
+            "route_number": route.route_number,
+            "route_order": route.route_order,
+            "customer_id": route.customer_id,
+            "customer_name": route.customer_name,
+            "customer_lat": route.customer_lat,
+            "customer_lon": route.customer_lon,
+            "demand": route.demand
+        })
+
+    return {"aco_routes": route_data}
 
 
 @app.get("/get_routes")
@@ -245,6 +287,7 @@ async def get_routes(db: Session = Depends(get_db)):
         route_customers.append(customers)
 
     return {"route_customers": route_customers}
+
 
 
 @app.post("/upload_csv_without_route")
@@ -314,4 +357,4 @@ async def get_all_routes(db: Session = Depends(get_db)):
         })
 
     # Tüm rotaları döndür
-    return {"routes": route_data}
+    return {"routes": route_data} 
